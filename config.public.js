@@ -9,7 +9,7 @@ const CONFIG = {
         projectId: "nijmegen-3aaa6",
         storageBucket: "nijmegen-3aaa6.appspot.com",
         messagingSenderId: "123456789",
-        appId: "your-firebase-app-id" // You need to update this with your actual App ID
+        appId: "1:443929304510:web:6d7c53ec539a667487edef"
     },
     
     // App Settings
