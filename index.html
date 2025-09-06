@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nijmegen March Training Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Configuration -->
+    <script src="config.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        
+        // Initialize Firebase only if enabled in config
+        if (window.CONFIG && window.CONFIG.app.enableFirebase) {
+            try {
+                const app = initializeApp(window.CONFIG.firebase);
+                const db = getFirestore(app);
+                const auth = getAuth(app);
+                
+                // Make Firebase available globally
+                window.firebaseApp = app;
+                window.firebaseDB = db;
+                window.firebaseAuth = auth;
+                
+                console.log('Firebase initialized successfully');
+            } catch (error) {
+                console.error('Firebase initialization failed:', error);
+                console.log('Falling back to local storage mode');
+            }
+        } else {
+            console.log('Firebase disabled in config - using local storage mode');
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 data-translate="app.title">🏃‍♂️ Nijmegen March Training Tracker</h1>
+                <div class="header-controls">
+                    <div class="language-selector">
+                        <select id="languageSelector" class="language-select">
+                            <option value="en">🇺🇸 English</option>
+                            <option value="fi">🇫🇮 Suomi</option>
+                        </select>
+                    </div>
+                    <div class="auth-section">
+                        <button id="feedbackBtn" class="btn btn-outline btn-small" data-translate="feedback.button">💬 Feedback</button>
+                        <button id="loginBtn" class="btn btn-secondary" data-translate="auth.login">Login</button>
+                        <button id="registerBtn" class="btn btn-primary" data-translate="auth.register">Register</button>
+                        <span id="userInfo" class="user-info hidden"></span>
+                        <button id="logoutBtn" class="btn btn-outline hidden" data-translate="auth.logout">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav">
+            <button class="nav-btn active" data-tab="tracker" data-translate="nav.tracker">📊 Add Achievement</button>
+            <button class="nav-btn" data-tab="dashboard" data-translate="nav.dashboard">📈 Dashboard</button>
+            <button class="nav-btn" data-tab="history" data-translate="nav.history">📋 History</button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Tracker Tab -->
+            <section id="tracker" class="tab-content active">
+                <div class="card">
+                    <h2 data-translate="tracker.title">Track Your Achievement</h2>
+                    <form id="achievementForm" class="achievement-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="duration" data-translate="form.duration">Duration</label>
+                                <select id="duration" name="duration" required>
+                                    <option value="" data-translate="form.selectDuration">Select duration</option>
+                                    <option value="3" data-translate="form.duration3h">3 hours</option>
+                                    <option value="8" data-translate="form.duration8h">8 hours</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="weight" data-translate="form.weight">Weight (kg)</label>
+                                <select id="weight" name="weight" required>
+                                    <option value="" data-translate="form.selectWeight">Select weight</option>
+                                    <option value="0" data-translate="form.noWeight">No weight</option>
+                                    <option value="5" data-translate="form.weight5kg">5 kg</option>
+                                    <option value="10" data-translate="form.weight10kg">10 kg</option>
+                                    <option value="12.5" data-translate="form.weight12_5kg">12.5 kg</option>
+                                    <option value="15" data-translate="form.weight15kg">15 kg</option>
+                                    <option value="17.5" data-translate="form.weight17_5kg">17.5 kg</option>
+                                    <option value="20" data-translate="form.weight20kg">20 kg</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="speedTarget" data-translate="form.speedTarget">Speed Target (km/h)</label>
+                                <input type="number" id="speedTarget" name="speedTarget" step="0.1" min="1" max="10" placeholder="e.g., 6.5" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="actualSpeed" data-translate="form.actualSpeed">Actual Speed (km/h)</label>
+                                <input type="number" id="actualSpeed" name="actualSpeed" step="0.1" min="1" max="10" placeholder="e.g., 6.2" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="date" data-translate="form.date">Date</label>
+                                <input type="date" id="date" name="date" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="status" data-translate="form.status">Status</label>
+                                <select id="status" name="status" required>
+                                    <option value="success" data-translate="form.success">✅ Success</option>
+                                    <option value="failed" data-translate="form.failed">❌ Failed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="comment" data-translate="form.comment">Comment (optional)</label>
+                            <textarea id="comment" name="comment" rows="3" data-translate-placeholder="form.commentPlaceholder" placeholder="Add any notes about your training session..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-large" data-translate="form.addAchievement">Add Achievement</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Dashboard Tab -->
+            <section id="dashboard" class="tab-content">
+                <div class="card">
+                    <h2 data-translate="dashboard.title">Training Progress Dashboard</h2>
+                    <div class="dashboard-grid">
+                        <div class="stats-card">
+                            <h3 data-translate="dashboard.totalAchievements">Total Achievements</h3>
+                            <div class="stat-number" id="totalAchievements">0</div>
+                        </div>
+                        <div class="stats-card">
+                            <h3 data-translate="dashboard.successRate">Success Rate</h3>
+                            <div class="stat-number" id="successRate">0%</div>
+                        </div>
+                        <div class="stats-card">
+                            <h3 data-translate="dashboard.bestSpeed">Best Speed</h3>
+                            <div class="stat-number" id="bestSpeed">0 km/h</div>
+                        </div>
+                        <div class="stats-card">
+                            <h3 data-translate="dashboard.heaviestLoad">Heaviest Load</h3>
+                            <div class="stat-number" id="heaviestLoad">0 kg</div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Tab -->
+            <section id="history" class="tab-content">
+                <div class="card">
+                    <h2 data-translate="history.title">Training History</h2>
+                    <div class="history-controls">
+                        <select id="filterDuration" class="filter-select">
+                            <option value="" data-translate="history.allDurations">All Durations</option>
+                            <option value="3" data-translate="form.duration3h">3 hours</option>
+                            <option value="8" data-translate="form.duration8h">8 hours</option>
+                        </select>
+                        <select id="filterWeight" class="filter-select">
+                            <option value="" data-translate="history.allWeights">All Weights</option>
+                            <option value="0" data-translate="form.noWeight">No weight</option>
+                            <option value="5" data-translate="form.weight5kg">5 kg</option>
+                            <option value="10" data-translate="form.weight10kg">10 kg</option>
+                            <option value="12.5" data-translate="form.weight12_5kg">12.5 kg</option>
+                            <option value="15" data-translate="form.weight15kg">15 kg</option>
+                            <option value="17.5" data-translate="form.weight17_5kg">17.5 kg</option>
+                            <option value="20" data-translate="form.weight20kg">20 kg</option>
+                        </select>
+                        <select id="filterStatus" class="filter-select">
+                            <option value="" data-translate="history.allStatus">All Status</option>
+                            <option value="success" data-translate="form.success">Success</option>
+                            <option value="failed" data-translate="form.failed">Failed</option>
+                        </select>
+                    </div>
+                    <div id="historyList" class="history-list">
+                        <!-- History items will be populated here -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 data-translate="auth.login">Login</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail" data-translate="auth.email">Email</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword" data-translate="auth.password">Password</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary" data-translate="auth.login">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 data-translate="auth.register">Register</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="registerName" data-translate="auth.name">Name</label>
+                    <input type="text" id="registerName" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail" data-translate="auth.email">Email</label>
+                    <input type="email" id="registerEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword" data-translate="auth.password">Password</label>
+                    <input type="password" id="registerPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary" data-translate="auth.register">Register</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 data-translate="feedback.title">Send Feedback</h2>
+            <form id="feedbackForm">
+                <div class="form-group">
+                    <label for="feedbackName" data-translate="feedback.name">Your Name</label>
+                    <input type="text" id="feedbackName" required>
+                </div>
+                <div class="form-group">
+                    <label for="feedbackEmail" data-translate="feedback.email">Your Email</label>
+                    <input type="email" id="feedbackEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="feedbackSubject" data-translate="feedback.subject">Subject</label>
+                    <input type="text" id="feedbackSubject" data-translate-placeholder="feedback.subjectPlaceholder" placeholder="Brief description of your feedback" required>
+                </div>
+                <div class="form-group">
+                    <label for="feedbackMessage" data-translate="feedback.message">Message</label>
+                    <textarea id="feedbackMessage" rows="5" data-translate-placeholder="feedback.messagePlaceholder" placeholder="Please describe your feedback, suggestions, or issues..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" data-translate="feedback.send">Send Feedback</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="firebase-service.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
